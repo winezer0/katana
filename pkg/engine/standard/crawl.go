@@ -21,10 +21,12 @@ import (
 // makeRequest makes a request to a URL returning a response interface.
 func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Request) (*navigation.Response, error) {
 	response := &navigation.Response{
-		Depth:        request.Depth + 1,
-		RootHostname: s.Hostname,
+		Depth:             request.Depth + 1,
+		RootHostname:      s.Hostname,
+		NavigationRequest: request,
 	}
 	ctx := context.WithValue(s.Ctx, navigation.Depth{}, request.Depth)
+	ctx = navigation.WithNavigationRequest(ctx, request)
 	httpReq, err := http.NewRequestWithContext(ctx, request.Method, request.URL, nil)
 	if err != nil {
 		return response, err

@@ -29,6 +29,7 @@ func (h *Headers) MarshalJSON() ([]byte, error) {
 // Response is a response generated from crawler navigation
 type Response struct {
 	Resp               *http.Response    `json:"-"`
+	NavigationRequest  *Request          `json:"-"`
 	Depth              int               `json:"-"`
 	Reader             *goquery.Document `json:"-"`
 	StatusCode         int               `json:"status_code,omitempty"`

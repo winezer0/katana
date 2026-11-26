@@ -457,16 +457,21 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
 			technologies := s.Options.Wappalyzer.Fingerprint(resp.Header, body)
 			technologyKeys = mapsutil.GetKeys(technologies)
 		}
+		var navigationRequest *navigation.Request
+		if resp.Request != nil {
+			navigationRequest = navigation.NavigationRequestFromContext(resp.Request.Context())
+		}
 		navigationResponse := &navigation.Response{
-			Depth:         depth + 1,
-			RootHostname:  hostname,
-			Resp:          resp,
-			Body:          string(body),
-			Reader:        reader,
-			Technologies:  technologyKeys,
-			StatusCode:    resp.StatusCode,
-			Headers:       utils.FlattenHeaders(resp.Header),
-			KnowledgeBase: s.Options.BuildKnowledgeBase(string(body), resp.Request, resp),
+			Depth:             depth + 1,
+			RootHostname:      hostname,
+			Resp:              resp,
+			NavigationRequest: navigationRequest,
+			Body:              string(body),
+			Reader:            reader,
+			Technologies:      technologyKeys,
+			StatusCode:        resp.StatusCode,
+			Headers:           utils.FlattenHeaders(resp.Header),
+			KnowledgeBase:     s.Options.BuildKnowledgeBase(string(body), resp.Request, resp),
 		}
 		navigationRequests := s.Options.Parser.ParseResponse(navigationResponse)
 		s.Enqueue(queue, navigationRequests...)
@@ -508,7 +513,7 @@ func (s *Shared) AcceptRequest(crawlSession *CrawlSession, item interface{}) (re
 		return nil, false, false
 	}
 
-	if !s.Options.ValidatePath(req.URL) {
+	if !s.Options.ValidateRequestPath(req) {
 		gologger.Debug().Msgf("`%v` filtered path. skipping", req.URL)
 		return nil, false, false
 	}

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/happyhackingspace/dit"
 	"github.com/projectdiscovery/fastdialer/fastdialer"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/katana/pkg/decider"
@@ -16,13 +17,13 @@ import (
 	"github.com/projectdiscovery/katana/pkg/knowledgebase"
 	"github.com/projectdiscovery/katana/pkg/knowledgebase/extractors/endpoints"
 	"github.com/projectdiscovery/katana/pkg/knowledgebase/extractors/secrets"
+	"github.com/projectdiscovery/katana/pkg/navigation"
 	"github.com/projectdiscovery/katana/pkg/output"
 	"github.com/projectdiscovery/katana/pkg/similarity"
 	"github.com/projectdiscovery/katana/pkg/utils/extensions"
 	"github.com/projectdiscovery/katana/pkg/utils/filters"
 	"github.com/projectdiscovery/katana/pkg/utils/scope"
 	"github.com/projectdiscovery/ratelimit"
-	"github.com/happyhackingspace/dit"
 	"github.com/projectdiscovery/utils/errkit"
 	urlutil "github.com/projectdiscovery/utils/url"
 	wappalyzer "github.com/projectdiscovery/wappalyzergo"
@@ -89,6 +90,7 @@ func NewCrawlerOptions(options *Options) (*CrawlerOptions, error) {
 		FormDecider:            formDecider(aiDecider),
 		ScrapeJSLuiceResponses: options.ScrapeJSLuiceResponses,
 		ScrapeJSResponses:      options.ScrapeJSResponses,
+		ScrapeJSMapResponses:   options.ScrapeJSMapResponses,
 		DisableRedirects:       options.DisableRedirects,
 	}
 
@@ -275,6 +277,22 @@ func (c *CrawlerOptions) ValidatePath(path string) bool {
 		return c.ExtensionsValidator.ValidatePath(path)
 	}
 	return true
+}
+
+// ValidateRequestPath validates a crawl request, allowing Source Map requests
+// through the default .map denylist while preserving explicit extension rules.
+func (c *CrawlerOptions) ValidateRequestPath(req *navigation.Request) bool {
+	if req == nil {
+		return false
+	}
+	if c.ExtensionsValidator == nil {
+		return true
+	}
+	allowDefaultMap := c.Options != nil && c.Options.ScrapeJSMapResponses && (req.SkipValidation || req.Tag == navigation.SourceMapRequestTag)
+	if allowDefaultMap {
+		return c.ExtensionsValidator.ValidatePathAllowDefaultMap(req.URL)
+	}
+	return c.ExtensionsValidator.ValidatePath(req.URL)
 }
 
 // BuildKnowledgeBase assembles the response KnowledgeBase map by merging

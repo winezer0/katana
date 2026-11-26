@@ -59,3 +59,15 @@ func TestValidatorExtensionMatchNone(t *testing.T) {
 		require.True(t, validator.ValidatePath("https://example.com/page"))
 	})
 }
+
+func TestValidatorAllowsSourceMapOnlyWhenRequested(t *testing.T) {
+	validator := NewValidator(nil, nil, false)
+	require.False(t, validator.ValidatePath("https://example.com/app.js.map"))
+	require.True(t, validator.ValidatePathAllowDefaultMap("https://example.com/app.js.map"))
+
+	explicitlyFiltered := NewValidator(nil, []string{"map"}, false)
+	require.False(t, explicitlyFiltered.ValidatePathAllowDefaultMap("https://example.com/app.js.map"))
+
+	extensionMatch := NewValidator([]string{"js"}, nil, false)
+	require.False(t, extensionMatch.ValidatePathAllowDefaultMap("https://example.com/app.js.map"))
+}

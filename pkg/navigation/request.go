@@ -1,9 +1,32 @@
 package navigation
 
 import (
+	"context"
 	"net/http"
 	"strings"
 )
+
+// SourceMapRequestTag marks requests generated while following a Source Map.
+const SourceMapRequestTag = "sourcemap"
+
+// SourceMapSourceTag marks source files referenced by a Source Map.
+const SourceMapSourceTag = "sourcemap-source"
+
+type requestContextKey struct{}
+
+// WithNavigationRequest attaches crawler request metadata to an HTTP context.
+func WithNavigationRequest(ctx context.Context, req *Request) context.Context {
+	return context.WithValue(ctx, requestContextKey{}, req)
+}
+
+// NavigationRequestFromContext retrieves crawler request metadata from an HTTP context.
+func NavigationRequestFromContext(ctx context.Context) *Request {
+	if ctx == nil {
+		return nil
+	}
+	req, _ := ctx.Value(requestContextKey{}).(*Request)
+	return req
+}
 
 // Depth is the depth of a navigation
 type Depth struct{}

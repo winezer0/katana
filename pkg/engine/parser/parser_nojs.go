@@ -8,6 +8,7 @@ type Options struct {
 	AutomaticFormFill      bool
 	ScrapeJSLuiceResponses bool
 	ScrapeJSResponses      bool
+	ScrapeJSMapResponses   bool
 	DisableRedirects       bool
 	// FormDecider classifies form fields the rules cannot, nil disables it
 	FormDecider decider.Decider
@@ -21,6 +22,9 @@ func (p *Parser) InitWithOptions(options *Options) {
 		*p = append(*p, responseParser{bodyParser, scriptContentRegexParser})
 		*p = append(*p, responseParser{contentParser, scriptJSFileRegexParser})
 		*p = append(*p, responseParser{contentParser, bodyScrapeEndpointsParser})
+	}
+	if options.ScrapeJSMapResponses {
+		registerSourceMapParsers(p, nil)
 	}
 	if !options.DisableRedirects {
 		*p = append(*p, responseParser{headerParser, headerLocationParser})

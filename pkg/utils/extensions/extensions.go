@@ -13,15 +13,17 @@ var defaultExtFilter = []string{".3g2", ".3gp", ".7z", ".apk", ".arj", ".avi", "
 
 // Validator is a validator for file extension
 type Validator struct {
-	extensionsMatch  map[string]struct{}
-	extensionsFilter map[string]struct{}
+	extensionsMatch          map[string]struct{}
+	extensionsFilter         map[string]struct{}
+	explicitExtensionsFilter map[string]struct{}
 }
 
 // NewValidator creates a new extension validator instance
 func NewValidator(extensionsMatch, extensionsFilter []string, noDefaultExtFilter bool) *Validator {
 	validator := &Validator{
-		extensionsMatch:  make(map[string]struct{}),
-		extensionsFilter: make(map[string]struct{}),
+		extensionsMatch:          make(map[string]struct{}),
+		extensionsFilter:         make(map[string]struct{}),
+		explicitExtensionsFilter: make(map[string]struct{}),
 	}
 
 	for _, extension := range extensionsMatch {
@@ -33,13 +35,25 @@ func NewValidator(extensionsMatch, extensionsFilter []string, noDefaultExtFilter
 		}
 	}
 	for _, extension := range extensionsFilter {
-		validator.extensionsFilter[normalizeExtension(extension)] = struct{}{}
+		extension := normalizeExtension(extension)
+		validator.extensionsFilter[extension] = struct{}{}
+		validator.explicitExtensionsFilter[extension] = struct{}{}
 	}
 	return validator
 }
 
 // ValidatePath returns true if an extension is allowed by the validator
 func (e *Validator) ValidatePath(item string) bool {
+	return e.validatePath(item, false)
+}
+
+// ValidatePathAllowDefaultMap allows .map through the built-in denylist only;
+// explicit extension filtering and extension matching still take precedence.
+func (e *Validator) ValidatePathAllowDefaultMap(item string) bool {
+	return e.validatePath(item, true)
+}
+
+func (e *Validator) validatePath(item string, allowDefaultMap bool) bool {
 	var extension string
 	u, err := urlutil.Parse(item)
 	if err != nil {
@@ -62,7 +76,10 @@ func (e *Validator) ValidatePath(item string) bool {
 		return false
 	}
 
-	if _, ok := e.extensionsFilter[extension]; ok {
+	if _, ok := e.explicitExtensionsFilter[extension]; ok {
+		return false
+	}
+	if _, ok := e.extensionsFilter[extension]; ok && !(allowDefaultMap && extension == ".map") {
 		return false
 	}
 	return true

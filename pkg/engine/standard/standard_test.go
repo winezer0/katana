@@ -84,6 +84,87 @@ func newTestCrawler(t *testing.T, knownFiles string) *Crawler {
 	return crawler
 }
 
+func TestCrawlFollowsSourceMapsOnlyWhenEnabled(t *testing.T) {
+	testCases := []struct {
+		name    string
+		enabled bool
+	}{
+		{name: "enabled", enabled: true},
+		{name: "disabled", enabled: false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			var (
+				mu        sync.Mutex
+				requested = make(map[string]int)
+			)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				requested[r.URL.Path]++
+				mu.Unlock()
+
+				switch r.URL.Path {
+				case "/":
+					w.Header().Set("Content-Type", "text/html")
+					_, _ = fmt.Fprint(w, `<html><script src="/assets/app.js"></script></html>`)
+				case "/assets/app.js":
+					w.Header().Set("Content-Type", "application/javascript")
+					_, _ = fmt.Fprint(w, "//# sourceMappingURL=app.js.map\n")
+				case "/assets/app.js.map":
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = fmt.Fprint(w, `{"version":3,"sources":["src/embedded.js","src/no-content.js"],"sourcesContent":["fetch('/api/from-map-content')",null]}`)
+				case "/assets/src/no-content.js":
+					w.Header().Set("Content-Type", "application/javascript")
+					_, _ = fmt.Fprint(w, "fetch('/api/from-fetched-source')\n")
+				default:
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = fmt.Fprint(w, `{"ok":true}`)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			options, err := types.NewCrawlerOptions(&types.Options{
+				MaxDepth:             5,
+				FieldScope:           "rdn",
+				BodyReadSize:         math.MaxInt,
+				Timeout:              1,
+				Retries:              1,
+				Concurrency:          2,
+				Parallelism:          2,
+				RateLimit:            150,
+				Strategy:             "breadth-first",
+				ScrapeJSMapResponses: testCase.enabled,
+				Silent:               true,
+				OnResult:             func(output.Result) {},
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = options.Close() })
+
+			crawler, err := New(options)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = crawler.Close() })
+
+			require.NoError(t, crawler.Crawl(server.URL))
+
+			mu.Lock()
+			defer mu.Unlock()
+			mapRequests := requested["/assets/app.js.map"]
+			if testCase.enabled {
+				require.Positive(t, mapRequests)
+				require.Positive(t, requested["/assets/src/no-content.js"])
+				require.Positive(t, requested["/api/from-map-content"])
+				require.Positive(t, requested["/api/from-fetched-source"])
+				return
+			}
+			require.Zero(t, mapRequests)
+			require.Zero(t, requested["/assets/src/no-content.js"])
+			require.Zero(t, requested["/api/from-map-content"])
+			require.Zero(t, requested["/api/from-fetched-source"])
+		})
+	}
+}
+
 func requireNoOpenConnections(t *testing.T, tracker *connTracker) {
 	t.Helper()
 	require.Eventually(t, func() bool { return tracker.count() == 0 }, 2*time.Second, 20*time.Millisecond,

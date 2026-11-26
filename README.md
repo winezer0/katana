@@ -131,6 +131,7 @@ CONFIGURATION:
    -d, -depth int                maximum depth to crawl (default 3)
    -jc, -js-crawl                enable endpoint parsing / crawling in javascript file
    -jsl, -jsluice                enable jsluice parsing in javascript file (memory intensive)
+   -jsmap                        enable JavaScript source map discovery and endpoint extraction
    -ct, -crawl-duration value    maximum duration to crawl the target for (s, m, h, d) (default s)
    -kf, -known-files string      enable crawling of known files (all,robotstxt,sitemapxml), a minimum depth of 3 is required to ensure all known files are properly crawled.
    -mrs, -max-response-size int  maximum response size to read (default 4194304)
@@ -632,6 +633,15 @@ Option to enable JavaScript file parsing + crawling the endpoints discovered in 
 katana -u https://tesla.com -jc
 ```
 
+*`-jsmap`*
+-----
+
+Option to discover source maps referenced by JavaScript files and extract endpoints from mapped source content. This is independent of `-jc` and `-jsl` and is disabled by default.
+
+```
+katana -u https://tesla.com -jsmap
+```
+
 *`-crawl-duration`*
 ----
 
@@ -856,6 +866,7 @@ CONFIGURATION:
    -r, -resolvers string[]       list of custom resolver (file or comma separated)
    -d, -depth int                maximum depth to crawl (default 3)
    -jc, -js-crawl                enable endpoint parsing / crawling in javascript file
+   -jsmap                        enable JavaScript source map discovery and endpoint extraction
    -ct, -crawl-duration int      maximum duration to crawl the target for
    -kf, -known-files string      enable crawling of known files (all,robotstxt,sitemapxml)
    -mrs, -max-response-size int  maximum response size to read (default 9223372036854775807)

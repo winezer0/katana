@@ -34,8 +34,9 @@ import (
 func (c *Crawler) navigateRequest(s *common.CrawlSession, request *navigation.Request) (*navigation.Response, error) {
 	depth := request.Depth + 1
 	response := &navigation.Response{
-		Depth:        depth,
-		RootHostname: s.Hostname,
+		Depth:             depth,
+		RootHostname:      s.Hostname,
+		NavigationRequest: request,
 	}
 
 	page, err := s.Browser.Context(s.Ctx).Page(proto.TargetCreateTarget{})
@@ -204,17 +205,18 @@ func (c *Crawler) navigateRequest(s *common.CrawlSession, request *navigation.Re
 			}
 		}
 		resp := &navigation.Response{
-			Resp:          httpresp,
-			Body:          string(body),
-			Reader:        bodyReader,
-			Depth:         depth,
-			RootHostname:  s.Hostname,
-			Technologies:  mapsutil.GetKeys(technologies),
-			StatusCode:    statusCode,
-			Headers:       utils.FlattenHeaders(headers),
-			Raw:           string(rawBytesResponse),
-			ContentLength: httpresp.ContentLength,
-			KnowledgeBase: c.Options.BuildKnowledgeBase(string(body), httpreq, httpresp),
+			Resp:              httpresp,
+			NavigationRequest: request,
+			Body:              string(body),
+			Reader:            bodyReader,
+			Depth:             depth,
+			RootHostname:      s.Hostname,
+			Technologies:      mapsutil.GetKeys(technologies),
+			StatusCode:        statusCode,
+			Headers:           utils.FlattenHeaders(headers),
+			Raw:               string(rawBytesResponse),
+			ContentLength:     httpresp.ContentLength,
+			KnowledgeBase:     c.Options.BuildKnowledgeBase(string(body), httpreq, httpresp),
 		}
 		response.ContentLength = resp.ContentLength
 		if isBlockedDoc {
