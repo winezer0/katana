@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"syscall"
@@ -28,11 +29,16 @@ import (
 var (
 	cfgFile string
 	options = &types.Options{}
+	version = "dev"
 )
 
 func main() {
 	flagSet, err := readFlags()
 	handleError("Could not read flags", err)
+	if options.Version {
+		fmt.Println(versionString(version, buildCommitTime()))
+		return
+	}
 
 	if options.ListOutputFields {
 		gologger.Info().Msgf("Available fields for JSON output:")
@@ -61,9 +67,6 @@ func main() {
 
 	katanaRunner, err := runner.New(options)
 	if err != nil || katanaRunner == nil {
-		if options.Version {
-			return
-		}
 		gologger.Error().Msgf("could not create runner: %s\n", err)
 		os.Exit(0)
 	}
@@ -279,6 +282,10 @@ func readFlags() (*goflags.FlagSet, error) {
 	if err := flagSet.Parse(); err != nil {
 		return nil, errkit.Wrap(err, "could not parse flags")
 	}
+	// Version output must not depend on a configuration file or other startup work.
+	if options.Version {
+		return flagSet, nil
+	}
 
 	if cfgFile != "" {
 		if err := flagSet.MergeConfigFile(cfgFile); err != nil {
@@ -296,6 +303,30 @@ func readFlags() (*goflags.FlagSet, error) {
 
 	cleanupOldResumeFiles()
 	return flagSet, nil
+}
+
+func versionString(version, commitTime string) string {
+	if commitTime == "" {
+		commitTime = "unknown"
+	}
+	return fmt.Sprintf("%s (commit %s)", version, commitTime)
+}
+
+func buildCommitTime() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	return commitTimeFromSettings(info.Settings)
+}
+
+func commitTimeFromSettings(settings []debug.BuildSetting) string {
+	for _, setting := range settings {
+		if setting.Key == "vcs.time" && setting.Value != "" {
+			return setting.Value
+		}
+	}
+	return "unknown"
 }
 
 func init() {

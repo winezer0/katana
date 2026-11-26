@@ -12,8 +12,10 @@ project_name: katana
 
 builds:
   - id: katana
+    flags:
+      - -buildvcs=true
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
     binary: katana
     main: ./cmd/katana/main.go
     goos:
